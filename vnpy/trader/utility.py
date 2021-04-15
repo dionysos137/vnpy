@@ -165,6 +165,7 @@ def get_digits(value: float) -> int:
 
 class BarGenerator:
     """
+    Create a bar object, update it when the tick comes in, and then push it into on_bar or on_window_bar
     For:
     1. generating 1 minute bar data from tick data
     2. generateing x minute bar/x hour bar data from 1 minute data
@@ -200,6 +201,7 @@ class BarGenerator:
     def update_tick(self, tick: TickData) -> None:
         """
         Update new tick data into generator.
+        Synsetic a 1-min bar.
         """
         new_minute = False
 
@@ -211,8 +213,10 @@ class BarGenerator:
         if self.last_tick and tick.datetime < self.last_tick.datetime:
             return
 
+        # If there is no bar that has been initiated
         if not self.bar:
             new_minute = True
+        # Or if the tick minite has advanced by one
         elif (
             (self.bar.datetime.minute != tick.datetime.minute)
             or (self.bar.datetime.hour != tick.datetime.hour)
@@ -220,10 +224,10 @@ class BarGenerator:
             self.bar.datetime = self.bar.datetime.replace(
                 second=0, microsecond=0
             )
-            self.on_bar(self.bar)
+            self.on_bar(self.bar) # send the completed bar (of last minute) to on_bar()
 
             new_minute = True
-
+        # if either of above cases is true, a new bar object is initiated
         if new_minute:
             self.bar = BarData(
                 symbol=tick.symbol,
@@ -237,9 +241,10 @@ class BarGenerator:
                 close_price=tick.last_price,
                 open_interest=tick.open_interest
             )
+        # if neither of above cases is true, that means we are within the same minute, so the bar is updated by the newest tick price
         else:
             self.bar.high_price = max(self.bar.high_price, tick.last_price)
-            if tick.high_price > self.last_tick.high_price:
+            if tick.high_price > self.last_tick.high_price: #??
                 self.bar.high_price = max(self.bar.high_price, tick.high_price)
 
             self.bar.low_price = min(self.bar.low_price, tick.last_price)
